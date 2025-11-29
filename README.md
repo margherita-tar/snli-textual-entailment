@@ -1,7 +1,6 @@
 # SNLI Textual Entailment
 **1. INTRODUZIONE**
 
----
 
 1.1 SPIEGAZIONE DEL PROGETTO e OBIETTIVO DEL LAVORO
 Il progetto affronta un classico task di Natural Language Processing (NLP) noto come Natural Language Inference (NLI). L'obiettivo è determinare la relazione logica tra una coppia di frasi: una "premessa" e un'"ipotesi".
