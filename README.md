@@ -3,6 +3,7 @@
 
 
 1.1 SPIEGAZIONE DEL PROGETTO e OBIETTIVO DEL LAVORO
+
 Il progetto affronta un classico task di Natural Language Processing (NLP) noto come Natural Language Inference (NLI). L'obiettivo è determinare la relazione logica tra una coppia di frasi: una "premessa" e un'"ipotesi".
 
 Il modello deve classificare questa relazione in una delle seguenti tre categorie:
@@ -17,6 +18,7 @@ Modello Avanzato: una rete neurale ricorrente, specificamente una Bi-directional
 Il framework utilizzato è PyTorch con l'ausilio di PyTorch Lightning per semplificare e standardizzare i cicli di addestramento e valutazione.
 
 1.2 DESCRIZIONE DEL DATASET
+
 SNLI è un dataset di grandi dimensioni:
 
 Set di Addestramento (Train): ~550.000 esempi
@@ -38,10 +40,13 @@ captionID	ID della didascalia.	3416050480.jpg#4
 pairID	ID univoco per la coppia premessa-ipotesi.	3416050480.jpg#4r1n
 label1 ... label5	Etichette date da 5 annotatori.	La maggior parte sono NaN
 **2. SET-UP**
+
 installazione dell’ambiente pytorch lightening
 import delle librerie
 download del dataset in formato zip, estrazione e successiva visualizzazione
+
 **3. ANALISI DEI DATI (EDA & PLOTS)**
+
 EDA:
 
 d.shape: stampa delle dimensioni dei set dei dati e le relative proporzioni in percentuale
@@ -62,10 +67,13 @@ filtraggio delle label valide
 mapping delle gold label in valori numerici
 stampa della lunghezza media delle frasi per ogni dataset per valutare eventuali sbilanciamenti che non sono emersi
 plot della distribuzione delle classi per ogni dataset per valutare eventuale sbilanciamento
+
 **4. LOGISTIC REGRESSION (MODELLO BASE)**
+
 Come primo modello base implementiamo una Regressione Logistica OvR, di cui abbiamo valutato le performance tramite metriche di valutazione e plot. Questo modello sarà poi confrontato con una versione avanzata basata su LSTM.
 
 4.1 PRE PROCESSING (SAMPLING) E FEATURE ENGINEERING (VETTORIZZAZIONE)
+
 Campionamento (Sampling): invece di utilizzare l'intero dataset, viene estratto un campione casuale del 50% da ciascun set (training, validation e test) per iterare più velocemente e per evitare problemi con la RAM
 Vettorizzazione del testo: utilizzando la Tecnica TF-IDF, si convertono documenti testuali in una matrice di feature numeriche basate sulla frequenza dei termini (TF) e sulla frequenza inversa del documento (IDF): si assegna quindi un peso maggiore alle parole che sono frequenti in una frase ma rare nell'intero corpus. Il risultato sono due matrici sparse
 Parametri del Vettorizzatore:
@@ -78,7 +86,9 @@ min_df=5: ignora le parole che appaiono in meno di 5 documenti, per filtrare err
 max_df=0.9: ignora le parole che appaiono in più del 90% dei documenti (es. stop-words molto comuni non catturate da altre liste).
 
 Feature Aggiuntiva (Similarità Coseno): viene calcolata la similarità coseno tra i vettori TF-IDF di sentence1 e sentence2 (se due documenti hanno molte parole in comune, il valore di cosime similarity sarà alto).
+
 4.2 HYPERPARAMETER TUNING
+
 Attraverso GridSearchCV, si è fatta una ricerca per i migliori iperparametri. La griglia è composta dai seguenti parametri testati:
 C: [0.01, 0.1, 1, 10]
 penalty: ['l2']
@@ -90,7 +100,9 @@ Mantenendo fissi i valori dei parametri scelti arbitrariamente (max iter = 500 e
 
 C = 1
 solver = 'saga'
+
 4.3 REGRESSIONE LOGISTICA OvR
+
 Il modello implementa una strategia One-vs-Rest, quindi addestra 3 classificatori binari indipendenti:
 Contradiction vs not-Contradiction
 Entailment vs not-Entailment
@@ -111,9 +123,11 @@ Conclusione:
 A seguito di vari tentativi, modificando per esempio i parametri del modello (numero massimo di features, frazionamento del dataset), questa versione è sembrata un buon punto di partenza per raggiungere un trade-off discreto per un dataset di una complessità non indifferente e un modello standard, che coglie una relazione lineare semplice.
 
 **5. LSTM PER NLI**
+
 Come secondo modello abbiamo deciso di testare un approccio più avanzato per ottenere performance migliori tramite implementazione di una rete neurale ricorrente, specificamente una BiLSTM (Bidirectional Long Short-Term Memory), per catturare le relazioni semantiche e sequenziali tra due frasi.
 
 5.1 PRE PROCESSING E FEATURE ENGINEERING (VETTORIZZAZIONE E COSTRUZIONE DEL VOCABOLARIO)
+
 Mantenendo la stessa percentuale di frazionamento del dataset al 50%, abbiamo ripetuto la vettorizzazione tramite TF-IDF, questa volta incrementando il numero di features, per aumentare la complessità del modello, accettando un compromesso con la diminuzione della velocità dell'esecuzione. Abbiamo proceduto creando una mappa numerica (word2idx) che associa ogni parola a un indice intero. Questo è un passo fondamentale per poter fornire il testo a un modello neurale:
 
 Filtri: Il vocabolario è limitato alle 10.000 parole più comuni che appaiono almeno 2 volte nel corpus di training+development. Questo riduce il rumore e la dimensionalità.
@@ -130,6 +144,7 @@ Differenza di Lunghezza: misura la differenza nel numero di parole.
 Per risolvere il problema dei batch di frasi con lunghezza diverse si implementa la funzione collate_fn, che tramite padding (aggiungendo valore 0 alla fine delle frasi più corte), rende le frasi tutte le della stessa lunghezza, pronte per essere elaborate dalla rete neurale.
 
 5.2 ARCHITETTURA DEL MODELLO NEURALE EntailmentLSTMModel
+
 Abbiamo scelto di usare 2 hidden layers poiché, dopo aver valutato le performance con un solo strato interno si è notato solo un lievissimo miglioramento delle metriche rispetto alla Logistic Regression.
 
 La rete neurale è composta dai seguenti layer:
@@ -156,12 +171,15 @@ Differenza di lunghezza normalizzata
 Passa poi attraverso un layer di Dropout (per la regolarizzazione) che serve a disattivare casualmente alcuni neuroni durante il training, riducendo il rischio di overfitting. 3. nn.Linear: layer finale di classificazione, che mappa il vettore ad uno spazio di dimensione 3, corrispondente alle 3 classi target. Il layer produce i logit, valori grezzi non normalizzati che rappresentano la propensione del modello verso ciascuna classe. Si applicherà la funzione softmax per ottenere probabilità.
 
 5.3 ADDESTRAMENTO
+
 Come nel modello precedente, anche questo addestramento è gestito dal Trainer che automatizza l’intero processo, munito anche di nuove soluzioni:
 
 EarlyStopping: è un "callback" che monitora la loss di validazione (val_loss). Se la loss non migliora per 3 epoche consecutive (patience=3), l'addestramento viene interrotto automaticamente. Questo previene l'overfitting e fa risparmiare tempo.
 LossCallback: un callback personalizzato che salva i valori di loss di training e validazione alla fine di ogni epoca. Questi dati vengono poi utilizzati per plottare le curve di apprendimento.
 AdamW: un’evoluzione dell'ottimizzatore Adam che spesso porta a una migliore generalizzazione. Usa un learning rate preso dagli iperparametri e applica un weight decay (penalizzazione L2).
+
 5.4 VALUTAZIONE E ANALISI DEI RISULTATI
+
 Abbiamo deciso di valutare il modello sulle stesse metriche usate per la Logistic Regression così da rendere più agevole il confronto tra le due.
 
 Tabella Riassuntiva - Osservazioni & Analisi Modello
@@ -180,6 +198,7 @@ AdamW integra nativamente il weight decay, migliorando la stabilità della regol
 In aggiunta, per valutare l'andamento dell'apprendimento e quindi la diminuzione delle loss, si è proceduto con il plot delle Learning Curves, a riprova anche del mancato overfitting. Si nota un andamento di discesa delle loss fino alla terza epoca, dopo di che, la validation loss procede con una capacità di apprendimento lievemente più bassa rispetto a quella di train, continuando a scendere fino quasi ad appiattirsi. Tuttavia, come già detto, non si verifica overfitting o, per lo meno, il gap che si crea tra le due curve non è un segnale preoccupante.
 
 **6. CONFRONTO PRESTAZIONI - MODELLO BASE vs LSTM**
+
 Dataset	Modello Base	LSTM
 Train Accuracy	0.6826	0.7552
 Val Accuracy	0.6755	0.7246
@@ -194,7 +213,9 @@ Il modello LSTM supera nettamente il modello base su tutti i set (train, val, te
 Tutte e tre le classi beneficiano di questo, con incrementi evidenti in precision, recall e F1-score. In particolare, la classe Entailment è quella che mostra il miglioramento più marcato nel recall e nell’AUC. Anche le prestazioni sulla classe Neutral, notoriamente la più difficile, aumentano.
 Le curve ROC confermano questi risultati: l’area sotto la curva migliora per ogni classe. Questo suggerisce che l’uso dell’LSTM per il processamento sequenziale delle frasi consente al modello di catturare dipendenze temporali e relazioni semantiche più profonde, che il modello di Regressione Logistica non riesce a cogliere pienamente.
 L’LSTM ha molti più parametri e quindi più capacità di modellare dati complessi, dunque nel caso del dataset SNLI, molto vasto, questa proprietà offre vantaggi non indifferenti.
+
 **7. CONSIDERAZIONI FINALI**
+
 Alla luce dei risultati ottenuti emerge con chiarezza che la capacità di modellare il contesto sequenziale è un requisito fondamentale per il task di Natural Language Inference.
 
 La differenza di performance tra un modello "bag-of-words" (lavora su rappresentazioni statiche, non tiene conto dell'ordine delle parole né della struttura sintattica delle frasi) e un modello sequenziale dimostra l’importanza dell'informazione contenuta nella sintassi e nell'ordine delle parole.
